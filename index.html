@@ -51,10 +51,10 @@
     }
     /* Hjälp-fyrkanter i legend */
     .color-box {
-      display: inline-block; 
-      width: 20px; 
-      height: 20px; 
-      margin-right: 6px; 
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      margin-right: 6px;
       vertical-align: middle;
       border: 1px solid #000;
     }
@@ -114,11 +114,11 @@
     </li>
     <li>
       <span class="color-box" style="background: #deb887;"></span>
-      <strong>Brun</strong> (uppförsbacke, kostnad 3) – Skapas genom att högerklicka 2 gånger.
+      <strong>Brun</strong> (kostnad 3) – Skapas genom att högerklicka 2 gånger.
     </li>
     <li>
       <span class="color-box" style="background: blue;"></span>
-      <strong>Blå</strong> (is, kostnad 5) – Skapas genom högerklicka 3 gånger.
+      <strong>Blå</strong> (kostnad 5) – Skapas genom att högerklicka 3 gånger.
     </li>
     <li>
       <span class="color-box" style="background: red;"></span>
@@ -134,23 +134,19 @@
     </li>
     <li>
       <span class="color-box" style="background: green;"></span>
-      <strong>Grön</strong> (start) – Anger startposition för sökningen. Klicka och dra för att flytta
+      <strong>Grön</strong> (start) – Anger startposition för sökningen. Klicka och dra för att flytta.
     </li>
   </ul>
   <p>
     <em>Vänsterklick</em> cyklar bara mellan svart och vit på en cell.<br/>
     <em>Högerklick</em> cyklar mellan röd → brun → blå → svart → röd.<br/>
-    
+  </p>
+  <p style="margin-top:8px;">
+    <em>Tips:</em> Vid A*-sökning kan du hålla muspekaren över en ruta för att se f(n)-värdet (kostnadsfunktionen).
   </p>
 </div>
 
 <script>
-/*
-  ==== Översättning av Python-koden till JavaScript ====
-  Vi använder i stort sett samma funktioner, variabelnamn, och logik.
-  Skillnaden är att vi ritar och hanterar händelser i HTML-canvas + DOM.
-*/
-
 /* --- Konstanter för rutnätets storlek --- */
 const GRID_WIDTH = 30;
 const GRID_HEIGHT = 15;
@@ -165,12 +161,7 @@ const ctx = canvas.getContext("2d");
 /* Container för att placera heuristik-text. */
 const canvasContainer = document.getElementById("canvasContainer");
 
-/* --- Initiera rutnätet ---
-   1 = svart (vägg),
-   0 = vit (kostnad 1),
-   2 = blå (is, kostnad 5),
-   3 = ljusbrun (uppförsbacke, kostnad 3)
-*/
+/* --- Initiera rutnätet --- */
 let grid = [];
 for (let r = 0; r < GRID_HEIGHT; r++) {
   let row = [];
@@ -196,26 +187,33 @@ let potential_start = null;
 let dragging_point = null;
 let drag_start_pos = null;
 
-/* --- För result_text i Python --- */
+/* --- Result-div --- */
 let resultDiv = document.getElementById("info");
 
 /* --- Variabler för stegvis läge --- */
-let stepMode = false; // Motsvarar step_mode.get()
+let stepMode = false;
 let A_STAR_STATE = null;
 let GREEDY_STATE = null;
 let BFS_STATE = null;
 let DFS_STATE = null;
 let search_in_progress = false;
 
-/* --- Algoritmval (DOM) --- */
-const algorithmSelect = document.getElementById("algorithmSelect");
-
 /* 
   === Global "search_cost" för att mäta totalkostnad för hela sökningen ===
-  Varje gång en ruta verkligen expanderas (dvs pop:ad från queue/stack/priorityQ)
-  ökar vi search_cost med cellens kostnad. 
 */
 let search_cost = 0;
+
+/** Kollar om vi har några icke-1-rutor (dvs blå eller brun). */
+function hasNonOneSquares() {
+  for (let r=0; r<GRID_HEIGHT; r++){
+    for (let c=0; c<GRID_WIDTH; c++){
+      if (grid[r][c] === 2 || grid[r][c] === 3) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
 
 /** Returnerar kostnaden för en cell (grid[r][c]). */
 function cellCost(r, c) {
@@ -228,7 +226,6 @@ function cellCost(r, c) {
 /* Rensa och nollställ cost före en ny sökning. */
 function resetSearchCost() {
   search_cost = 0;
-  // rensa ev. ljusgrön bakgrund från föregående söktext
   resultDiv.style.backgroundColor = "";
 }
 
@@ -236,6 +233,15 @@ function resetSearchCost() {
 function setFinalResultText(txt) {
   resultDiv.textContent = txt;
   resultDiv.style.backgroundColor = "lightgreen"; 
+}
+
+/* Räkna kostnaden för just slutvägen. */
+function calcPathCost(path) {
+  let c = 0;
+  for (let [rr,cc] of path) {
+    c += cellCost(rr, cc);
+  }
+  return c;
 }
 
 /* ===================== Övriga funktioner ====================== */
@@ -258,19 +264,15 @@ function get_neighbors(node) {
 }
 
 function draw_grid() {
-  // rensa canvas
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  // Ta bort ev. heuristik-labels
-  for (let [key, label] of heuristicTexts) {
-    if (label && label.parentNode) {
+  for (let [_, label] of heuristicTexts) {
+    if (label.parentNode) {
       label.parentNode.removeChild(label);
     }
   }
   heuristicTexts.clear();
   f_values.clear();
 
-  // Rita rutnät
   for (let r = 0; r < GRID_HEIGHT; r++) {
     for (let c = 0; c < GRID_WIDTH; c++) {
       let x1 = c * CELL_SIZE;
@@ -278,13 +280,13 @@ function draw_grid() {
 
       let color;
       if (grid[r][c] === 1) {
-        color = "black";       // vägg
+        color = "black";       
       } else if (grid[r][c] === 2) {
-        color = "blue";        // is (kostnad 5)
+        color = "blue";        
       } else if (grid[r][c] === 3) {
-        color = "#deb887";     // ljusbrun (uppförsbacke, kostnad 3)
+        color = "#deb887";     
       } else {
-        color = "white";       // vit (kostnad 1)
+        color = "white";       
       }
 
       ctx.fillStyle = color;
@@ -294,7 +296,7 @@ function draw_grid() {
     }
   }
 
-  // Rita mål (röda)
+  // Mål (röda)
   for (let [er, ec] of ends) {
     let x1 = ec * CELL_SIZE;
     let y1 = er * CELL_SIZE;
@@ -303,7 +305,7 @@ function draw_grid() {
     ctx.strokeRect(x1, y1, CELL_SIZE, CELL_SIZE);
   }
 
-  // Rita start (grön)
+  // Start (grön)
   let sr, sc;
   if (is_dragging_start && potential_start != null) {
     [sr, sc] = potential_start;
@@ -327,7 +329,6 @@ function clear_heuristic_texts() {
   f_values.clear();
 }
 
-/* Rensa allt sökrelaterat (ritar om grundlayout). */
 function clear_previous_search() {
   draw_grid();
   clear_heuristic_texts();
@@ -335,23 +336,16 @@ function clear_previous_search() {
   resultDiv.style.backgroundColor = "";
 }
 
-/* Markera en cell (utforskad) => ljusblå */
 function mark_explored(r, c) {
   if ((r === start[0] && c === start[1]) || ends.some(e => e[0]===r && e[1]===c)) {
     return;
   }
   let x = c*CELL_SIZE, y = r*CELL_SIZE;
-  ctx.fillStyle = "lightskyblue"; // ljusblå
+  ctx.fillStyle = "lightskyblue";
   ctx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
   ctx.strokeRect(x, y, CELL_SIZE, CELL_SIZE);
-
-  let labelKey = `${r},${c}`;
-  if (heuristicTexts.has(labelKey)) {
-    // texten ligger redan ovanpå pga CSS
-  }
 }
 
-/* Färglägger cell i orange för att markera frontier. */
 function color_frontier_cell(r, c) {
   if ((r === start[0] && c === start[1]) || ends.some(e => e[0]===r && e[1]===c)) {
     return;
@@ -361,19 +355,13 @@ function color_frontier_cell(r, c) {
   ctx.fillStyle = "orange";
   ctx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
   ctx.strokeRect(x, y, CELL_SIZE, CELL_SIZE);
-
-  let labelKey = `${r},${c}`;
-  if (heuristicTexts.has(labelKey)) {
-    // redan existerar => låt den ligga över
-  }
 }
 
-/* Markera den slutliga vägen -> ljusgrön */
 function mark_path(path) {
   for (let [r, c] of path) {
     if (r === start[0] && c === start[1]) continue;
     let isEnd = ends.some(e => e[0]===r && e[1]===c);
-    let color = isEnd ? "red" : "lightgreen"; // ljusgrön
+    let color = isEnd ? "red" : "lightgreen";
 
     let x = c*CELL_SIZE, y = r*CELL_SIZE;
     ctx.fillStyle = color;
@@ -382,7 +370,7 @@ function mark_path(path) {
   }
 }
 
-/* ==================== Algoritmer ====================== */
+/* ============= Algoritmer ============= */
 class PriorityQ {
   constructor() {
     this._data = [];
@@ -392,7 +380,7 @@ class PriorityQ {
     this._data.sort((a, b) => a[0] - b[0]);
   }
   pop() {
-    return this._data.shift(); // minsta först
+    return this._data.shift();
   }
   empty() {
     return this._data.length === 0;
@@ -409,10 +397,9 @@ function a_star_step(open_set, came_from, g_score, explored_cells) {
   let [f_current, current] = open_set.pop();
   let [row, col] = current;
 
-  // Varje gång vi expanderar en ruta: lägg till dess kostnad
+  // varje expanderad ruta → lägg till dess kostnad
   search_cost += cellCost(row, col);
 
-  // Kolla om vi är framme
   if (ends.some(e => e[0]===row && e[1]===col)) {
     // återskapa väg
     let path = [];
@@ -426,20 +413,25 @@ function a_star_step(open_set, came_from, g_score, explored_cells) {
     path.reverse();
 
     mark_path(path);
-    setFinalResultText(`Antal steg till mål: ${path.length-1}, Utforskade rutor: ${explored_cells-1}, Total kostnad för hela sökningen): ${search_cost}`);
+
+    // Om vi har 2/3-rutor i labyrinten => visa kostnad
+    let msg = `Antal steg till mål: ${path.length-1}, Utforskade rutor: ${explored_cells-1}`;
+    if (hasNonOneSquares()) {
+      let finalCost = calcPathCost(path);
+      msg += `, Kostnad för slutgiltig väg: ${finalCost}, Kostnad för hela sökningen: ${search_cost}`;
+    }
+    setFinalResultText(msg);
+
     search_in_progress = false;
     return;
   }
 
-  // Markera som utforskad
   mark_explored(row, col);
 
-  // neighbors
   for (let [nr, nc] of get_neighbors([row,col])) {
-    if (grid[nr][nc] === 1) continue; // vägg
-
+    if (grid[nr][nc] === 1) continue; 
     let current_g = g_score.get(`${row},${col}`);
-    let cost = cellCost(nr, nc);
+    let cost = cellCost(nr,nc);
     let tentative_g = current_g + cost;
     let neighborKey = `${nr},${nc}`;
 
@@ -450,10 +442,8 @@ function a_star_step(open_set, came_from, g_score, explored_cells) {
       let f_score = tentative_g + h_score;
       open_set.push([f_score, [nr,nc]]);
 
-      // Skriv f_score i rutan
       createHeuristicLabel(nr, nc, `${f_score}`);
       f_values.set(`${nr},${nc}`, [f_score, h_score]);
-
       color_frontier_cell(nr, nc);
     }
   }
@@ -483,7 +473,7 @@ function start_a_star() {
   let startKey = `${start[0]},${start[1]}`;
   g_score.set(startKey, 0);
 
-  let h_score = ends.map(e => heuristic(start,e)).reduce((a,b)=>Math.min(a,b), Infinity);
+  let h_score = ends.map(e => heuristic(start,e)).reduce((a,b) => Math.min(a,b), Infinity);
   let f_score = h_score;
   open_set.push([f_score, [start[0],start[1]]]);
   A_STAR_STATE = {open_set, came_from, g_score, explored_cells:1};
@@ -502,14 +492,19 @@ function greedy_best_first_step(open_set, explored, explored_cells) {
   let [h_score, current, path] = open_set.pop();
   let [row, col] = current;
 
-  // Varje gång vi expanderar en ruta: lägg till dess kostnad
   search_cost += cellCost(row, col);
 
   if (ends.some(e => e[0]===row && e[1]===col)) {
     let finalPath = path.concat([current]);
     mark_path(finalPath);
 
-    setFinalResultText(`Antal steg till mål: ${finalPath.length-1}, Utforskade rutor: ${explored_cells-1}, Kostnad (hela sökningen): ${search_cost}`);
+    let msg = `Antal steg till mål: ${finalPath.length-1}, Utforskade rutor: ${explored_cells-1}`;
+    if (hasNonOneSquares()) {
+      let finalCost = calcPathCost(finalPath);
+      msg += `, Kostnad för slutgiltig väg: ${finalCost}, Kostnad för hela sökningen: ${search_cost}`;
+    }
+    setFinalResultText(msg);
+
     search_in_progress = false;
     return;
   }
@@ -521,7 +516,7 @@ function greedy_best_first_step(open_set, explored, explored_cells) {
   for (let [nr,nc] of get_neighbors(current)) {
     let key = `${nr},${nc}`;
     if (explored.has(key) || grid[nr][nc] === 1) continue;
-    let h = ends.map(e => heuristic([nr,nc], e)).reduce((a,b) => Math.min(a,b), Infinity);
+    let h = ends.map(e => heuristic([nr,nc], e)).reduce((a,b)=>Math.min(a,b), Infinity);
     open_set.push([h, [nr,nc], path.concat([current])]);
     explored.add(key);
 
@@ -548,7 +543,7 @@ function start_greedy_best_first() {
   resetSearchCost();
 
   let open_set = new PriorityQ();
-  let h_score = ends.map(e => heuristic(start,e)).reduce((a,b)=>Math.min(a,b), Infinity);
+  let h_score = ends.map(e => heuristic(start,e)).reduce((a,b) => Math.min(a,b), Infinity);
   open_set.push([h_score, [start[0],start[1]], []]);
   let explored = new Set();
   GREEDY_STATE = {open_set, explored, explored_cells:1};
@@ -582,14 +577,19 @@ function bfs_step(queue, explored, explored_cells) {
   let [current, path] = queue.dequeue();
   let [row, col] = current;
 
-  // Varje gång vi expanderar en ruta: lägg till dess kostnad
   search_cost += cellCost(row, col);
 
   if (ends.some(e=> e[0]===row && e[1]===col)) {
     let fullPath = path.concat([current]);
     mark_path(fullPath);
 
-    setFinalResultText(`Antal steg till mål: ${fullPath.length-1}, Utforskade rutor: ${explored_cells-1}, Kostnad (hela sökningen): ${search_cost}`);
+    let msg = `Antal steg till mål: ${fullPath.length-1}, Utforskade rutor: ${explored_cells-1}`;
+    if (hasNonOneSquares()) {
+      let finalCost = calcPathCost(fullPath);
+      msg += `, Kostnad för slutgiltig väg: ${finalCost}, Kostnad för hela sökningen: ${search_cost}`;
+    }
+    setFinalResultText(msg);
+
     search_in_progress = false;
     return;
   }
@@ -624,7 +624,7 @@ function start_bfs() {
   resetSearchCost();
 
   let queue = new SimpleQueue();
-  queue.enqueue([ [start[0],start[1]], [] ]);
+  queue.enqueue([[start[0],start[1]], []]);
   let explored = new Set();
   BFS_STATE = {queue, explored, explored_cells:1};
   search_in_progress = true;
@@ -644,14 +644,19 @@ function dfs_step(stack, explored, explored_cells) {
   let [current, path, direction] = stack.pop();
   let [row, col] = current;
 
-  // Varje gång vi expanderar en ruta: lägg till dess kostnad
   search_cost += cellCost(row, col);
 
   if (ends.some(e=> e[0]===row && e[1]===col)) {
     let finalPath = path.concat([current]);
     mark_path(finalPath);
 
-    setFinalResultText(`Antal steg till mål: ${finalPath.length-1}, Utforskade rutor: ${explored_cells-1}, Kostnad (hela sökningen): ${search_cost}`);
+    let msg = `Antal steg till mål: ${finalPath.length-1}, Utforskade rutor: ${explored_cells-1}`;
+    if (hasNonOneSquares()) {
+      let finalCost = calcPathCost(finalPath);
+      msg += `, Kostnad för slutgiltig väg: ${finalCost}, Kostnad för hela sökningen: ${search_cost}`;
+    }
+    setFinalResultText(msg);
+
     search_in_progress = false;
     return;
   }
@@ -660,7 +665,6 @@ function dfs_step(stack, explored, explored_cells) {
   explored.add(`${row},${col}`);
   explored_cells++;
 
-  // höger, framåt, vänster, bakåt
   let order = [
     (direction + 3) % 4,
     direction,
@@ -700,7 +704,7 @@ function start_dfs() {
   resetSearchCost();
 
   let start_direction = 2; // nedåt
-  let stack = [ [ [start[0],start[1]], [], start_direction ] ];
+  let stack = [[[start[0],start[1]], [], start_direction]];
   let explored = new Set();
   DFS_STATE = {stack, explored, explored_cells:1};
   search_in_progress = true;
@@ -719,19 +723,17 @@ function getCellFromMouse(e) {
   return [row, col];
 }
 
-// Förhindra kontextmeny (högerklick) på canvas
 canvas.oncontextmenu = (e) => {
   e.preventDefault();
 };
 
-canvas.addEventListener("mousedown", (e)=>{
+canvas.addEventListener("mousedown",(e)=>{
   e.preventDefault();
   let cell = getCellFromMouse(e);
   if (!cell) return;
   drag_start_pos = cell;
   let [row, col] = cell;
   if (row===start[0] && col===start[1]) {
-    // börja dra start
     is_dragging_start = true;
     old_start = [start[0], start[1]];
     potential_start = [start[0], start[1]];
@@ -741,38 +743,35 @@ canvas.addEventListener("mousedown", (e)=>{
   }
 });
 
-canvas.addEventListener("mousemove", (e)=>{
+canvas.addEventListener("mousemove",(e)=>{
   e.preventDefault();
   if (is_dragging_start) {
     let cell = getCellFromMouse(e);
     if (cell) {
       potential_start = cell;
-      draw_grid(); // rita om
+      draw_grid();
     }
   } else if (dragging_point==="other" && e.buttons===1) {
-    // vänsterknappen nedtryckt => toggla vägg svart<->vit vid drag
     let cell = getCellFromMouse(e);
     if (cell) {
       let [row, col] = cell;
       if (grid[row][col] === 1) {
-        grid[row][col] = 0; // svart -> vit
+        grid[row][col] = 0;
       } else {
-        grid[row][col] = 1; // vit (eller annan) -> svart
+        grid[row][col] = 1;
       }
       draw_grid();
     }
   }
 });
 
-canvas.addEventListener("mouseup", (e)=>{
+canvas.addEventListener("mouseup",(e)=>{
   e.preventDefault();
   let cell = getCellFromMouse(e);
 
-  // Om vi har dragit start
   if (is_dragging_start) {
     is_dragging_start = false;
     if (cell && (potential_start[0]!==old_start[0] || potential_start[1]!==old_start[1])) {
-      // gör gamla start svart
       grid[old_start[0]][old_start[1]] = 1;
       start = [potential_start[0], potential_start[1]];
       grid[start[0]][start[1]] = 0;
@@ -785,42 +784,32 @@ canvas.addEventListener("mouseup", (e)=>{
     return;
   }
 
-  // Annars om det är "other" (dvs en vanlig cell)
   if (dragging_point === "other") {
-    // Kolla om klicket är vänster eller höger
     if (e.button === 0) {
-      // VÄNSTERKLICK: toggla svart/vit om man klickar på samma cell
       if (cell && cell[0]===drag_start_pos[0] && cell[1]===drag_start_pos[1]) {
         let [r,c] = cell;
-        // Endast svart->vit eller vit->svart
         if (grid[r][c]===1) {
-          grid[r][c] = 0; // svart -> vit
+          grid[r][c] = 0;
         } else if (grid[r][c]===0) {
-          grid[r][c] = 1; // vit -> svart
+          grid[r][c] = 1;
         }
         draw_grid();
       }
     } else if (e.button === 2) {
-      // HÖGERKLICK: röd->brun->blå->svart->röd
       if (cell && cell[0]===drag_start_pos[0] && cell[1]===drag_start_pos[1]) {
         let [r,c] = cell;
         let inEnds = ends.some(e=> e[0]===r && e[1]===c);
         if (inEnds) {
-          // just nu röd => näst: brun
           ends = ends.filter(e => !(e[0]===r && e[1]===c));
-          grid[r][c] = 3; // brun
+          grid[r][c] = 3;
         } else if (grid[r][c] === 3) {
-          // brun => blå
           grid[r][c] = 2;
         } else if (grid[r][c] === 2) {
-          // blå => svart
           grid[r][c] = 1;
         } else if (grid[r][c] === 1) {
-          // svart => röd
           ends.push([r,c]);
-          grid[r][c] = 0; // gör den gångbar internt
+          grid[r][c] = 0;
         } else {
-          // allt annat (t.ex. vit) => röd
           ends.push([r,c]);
           grid[r][c] = 0;
         }
@@ -835,7 +824,6 @@ canvas.addEventListener("mouseup", (e)=>{
   drag_start_pos = null;
 });
 
-/* Visa f(n)/h(n)/g(n) i "result_text" vid mousemove */
 canvas.addEventListener("mousemove",(e)=>{
   let cell = getCellFromMouse(e);
   if (!cell) {
@@ -852,10 +840,8 @@ canvas.addEventListener("mousemove",(e)=>{
   }
 });
 
-/* == Skapar/flyttar en textlabel för heuristik (f(n)) == */
 function createHeuristicLabel(r, c, txt) {
   let labelKey = `${r},${c}`;
-  // ta bort ev. gammalt
   if (heuristicTexts.has(labelKey)) {
     let oldLabel = heuristicTexts.get(labelKey);
     if (oldLabel.parentNode) {
@@ -871,7 +857,7 @@ function createHeuristicLabel(r, c, txt) {
   heuristicTexts.set(labelKey, label);
 }
 
-/* ====================== Knappar ======================= */
+/* == Knappar == */
 document.getElementById("startSearchBtn").addEventListener("click", ()=>{
   let alg = algorithmSelect.value;
   if (alg==="A*") {
@@ -932,7 +918,6 @@ function resetGrid() {
   draw_grid();
 }
 
-/* Spara labyrinth i JSON (data-URL) */
 document.getElementById("saveBtn").addEventListener("click", ()=>{
   let data = {
     "grid": grid,
@@ -940,7 +925,6 @@ document.getElementById("saveBtn").addEventListener("click", ()=>{
     "ends": ends
   };
   let jsonStr = JSON.stringify(data);
-  // Skapa en nerladdningslänk
   let blob = new Blob([jsonStr], {type:"application/json"});
   let url = URL.createObjectURL(blob);
 
@@ -953,7 +937,6 @@ document.getElementById("saveBtn").addEventListener("click", ()=>{
   URL.revokeObjectURL(url);
 });
 
-/* Ladda labyrinth från vald JSON */
 document.getElementById("loadBtn").addEventListener("click", ()=>{
   document.getElementById("loadInput").click();
 });
