@@ -141,6 +141,18 @@
       display: inline-block;
       width: 100%;
     }
+
+    /* Kostnadsfunktion Information - endast synlig vid A* */
+    #costFunctionInfo {
+      margin-top: 10px;
+      font-weight: bold;
+      color: #333;
+      background-color: #dff0d8;
+      padding: 10px;
+      border-radius: 5px;
+      max-width: 900px;
+      display: none; /* Döljs som standard */
+    }
   </style>
 </head>
 <body>
@@ -191,6 +203,7 @@
 
 <!-- Informationsfält -->
 <div id="info"></div>
+<div id="costFunctionInfo">Kostnadsfunktion: (håll musen över en cell för att se f(n))</div>
 <div id="hoverInfo"></div>
 
 <!-- Förklaringar av färger, kostnader och hur man skapar dem -->
@@ -287,6 +300,7 @@ let drag_start_pos = null;
 /* --- Result-div --- */
 let resultDiv = document.getElementById("info");
 let hoverInfoDiv = document.getElementById("hoverInfo");
+let costFunctionInfoDiv = document.getElementById("costFunctionInfo");
 
 /* --- Variabler för stegvis läge --- */
 let stepMode = false;
@@ -295,6 +309,9 @@ let GREEDY_STATE = null;
 let BFS_STATE = null;
 let DFS_STATE = null;
 let search_in_progress = false;
+
+/* --- Variabel för aktuell algoritm --- */
+let currentAlgorithm = null;
 
 /* 
   === Global "search_cost" för att mäta totalkostnad för hela sökningen ===
@@ -327,12 +344,19 @@ function resetSearchCost() {
   resultDiv.style.backgroundColor = "";
   hoverInfoDiv.textContent = "";
   hoverInfoDiv.style.backgroundColor = "";
+  // Dölj kostnadsfunktion info om det var synligt tidigare
+  costFunctionInfoDiv.style.display = "none";
 }
 
 /* Sätt result-text + gör bakgrunden ljusgrön. */
-function setFinalResultText(txt) {
+function setFinalResultText(txt, showCostFunction=false) {
   resultDiv.textContent = txt;
   resultDiv.style.backgroundColor = "lightgreen"; 
+  if (showCostFunction) {
+    costFunctionInfoDiv.style.display = "block";
+  } else {
+    costFunctionInfoDiv.style.display = "none";
+  }
 }
 
 /* Räkna kostnaden för just slutvägen. */
@@ -436,6 +460,7 @@ function clear_previous_search() {
   resultDiv.style.backgroundColor = "";
   hoverInfoDiv.textContent = "";
   hoverInfoDiv.style.backgroundColor = "";
+  costFunctionInfoDiv.style.display = "none";
 }
 
 function mark_explored(r, c) {
@@ -522,7 +547,7 @@ function a_star_step(open_set, came_from, g_score, explored_cells) {
       let finalCost = calcPathCost(path);
       msg += `, Kostnad för slutgiltig väg: ${finalCost}, Kostnad för hela sökningen: ${search_cost}`;
     }
-    setFinalResultText(msg);
+    setFinalResultText(msg, true); // Visa kostnadsfunktion info
 
     search_in_progress = false;
     return;
@@ -580,6 +605,7 @@ function start_a_star() {
   open_set.push([f_score, [start[0],start[1]]]);
   A_STAR_STATE = {open_set, came_from, g_score, explored_cells:1};
   search_in_progress = true;
+  currentAlgorithm = "A*";
 
   a_star_step(open_set, came_from, g_score, 1);
 }
@@ -605,7 +631,7 @@ function greedy_best_first_step(open_set, explored, explored_cells) {
       let finalCost = calcPathCost(finalPath);
       msg += `, Kostnad för slutgiltig väg: ${finalCost}, Kostnad för hela sökningen: ${search_cost}`;
     }
-    setFinalResultText(msg);
+    setFinalResultText(msg, false); // Dölj kostnadsfunktion info
 
     search_in_progress = false;
     return;
@@ -650,6 +676,7 @@ function start_greedy_best_first() {
   let explored = new Set();
   GREEDY_STATE = {open_set, explored, explored_cells:1};
   search_in_progress = true;
+  currentAlgorithm = "Greedy";
 
   greedy_best_first_step(open_set, explored, 1);
 }
@@ -690,7 +717,7 @@ function bfs_step(queue, explored, explored_cells) {
       let finalCost = calcPathCost(fullPath);
       msg += `, Kostnad för slutgiltig väg: ${finalCost}, Kostnad för hela sökningen: ${search_cost}`;
     }
-    setFinalResultText(msg);
+    setFinalResultText(msg, false); // Dölj kostnadsfunktion info
 
     search_in_progress = false;
     return;
@@ -731,6 +758,7 @@ function start_bfs() {
   explored.add(`${start[0]},${start[1]}`);
   BFS_STATE = {queue, explored, explored_cells:1};
   search_in_progress = true;
+  currentAlgorithm = "BFS";
 
   bfs_step(queue, explored, 1);
 }
@@ -758,7 +786,7 @@ function dfs_step(stack, explored, explored_cells) {
       let finalCost = calcPathCost(finalPath);
       msg += `, Kostnad för slutgiltig väg: ${finalCost}, Kostnad för hela sökningen: ${search_cost}`;
     }
-    setFinalResultText(msg);
+    setFinalResultText(msg, false); // Dölj kostnadsfunktion info
 
     search_in_progress = false;
     return;
@@ -812,6 +840,7 @@ function start_dfs() {
   explored.add(`${start[0]},${start[1]}`);
   DFS_STATE = {stack, explored, explored_cells:1};
   search_in_progress = true;
+  currentAlgorithm = "DFS";
 
   dfs_step(stack, explored, 1);
 }
@@ -936,7 +965,7 @@ canvas.addEventListener("mousemove",(e)=>{
     return;
   }
   let key = `${cell[0]},${cell[1]}`;
-  if (f_values.has(key)) {
+  if (currentAlgorithm === "A*" && f_values.has(key)) {
     let [fval, hval] = f_values.get(key);
     let gval = fval - hval;
     hoverInfoDiv.textContent = `f(n) = g(n) + h(n) = ${gval} + ${hval} = ${fval}`;
@@ -1014,7 +1043,7 @@ document.getElementById("loadInput").addEventListener("change",(e)=>{
       });
       clear_previous_search();
       draw_grid();
-      setFinalResultText("Labyrinten har laddats.");
+      setFinalResultText("Labyrinten har laddats.", currentAlgorithm === "A*");
     } catch (error) {
       alert("Fel vid inläsning av fil: " + error.message);
     }
@@ -1027,484 +1056,49 @@ const predefinedMazes = {
   "Exempel 1": {
     "grid": [
       [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1
+        1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
       ],
       [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1
+        1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
       ],
       [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1
+        1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
       ],
       [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1
+        1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
       ],
       [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1
+        1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
       ],
       [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0,
-        1,
-        0,
-        1,
-        0,
-        1,
-        1,
-        1,
-        0,
-        0,
-        1,
-        0,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1
+        1,1,1,1,1,1,1,0,1,0,1,0,1,1,1,0,0,1,0,1,1,1,1,1,1,1,1,1,1,1
       ],
       [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0,
-        1,
-        0,
-        1,
-        0,
-        0,
-        0,
-        1,
-        0,
-        1,
-        1,
-        0,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1
+        1,1,1,1,1,1,1,0,1,0,1,0,0,0,1,0,1,1,0,1,1,1,1,1,1,1,1,1,1,1
       ],
       [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0,
-        0,
-        0,
-        1,
-        0,
-        1,
-        0,
-        0,
-        0,
-        1,
-        1,
-        0,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1
+        1,1,1,1,1,1,1,0,0,0,1,0,1,0,0,0,1,1,0,1,1,1,1,1,1,1,1,1,1,1
       ],
       [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0,
-        1,
-        1,
-        0,
-        1,
-        0,
-        1,
-        0,
-        1,
-        1,
-        0,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1
+        1,1,1,1,1,1,1,1,0,1,1,0,1,0,1,0,1,1,0,1,1,1,1,1,1,1,1,1,1,1
       ],
       [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0,
-        0,
-        0,
-        0,
-        1,
-        0,
-        1,
-        0,
-        0,
-        0,
-        0,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1
+        1,1,1,1,1,1,1,1,0,0,0,0,1,0,1,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1
       ],
       [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0,
-        1,
-        1,
-        0,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1
+        1,1,1,1,1,1,1,1,1,1,0,1,1,0,1,1,1,1,0,1,1,1,1,1,1,1,1,1,1,1
       ],
       [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0,
-        0,
-        0,
-        0,
-        1,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1
+        1,1,1,1,1,1,1,0,0,0,0,1,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1
       ],
       [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1
+        1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
       ],
       [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1
+        1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
       ],
       [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1
+        1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
       ]
     ],
     "start": [
@@ -1521,484 +1115,49 @@ const predefinedMazes = {
   "Exempel 2": {
     "grid": [
       [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1
+        1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
       ],
       [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1
+        1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
       ],
       [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1
+        1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
       ],
       [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1
+        1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
       ],
       [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1
+        1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
       ],
       [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1
+        1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1
       ],
       [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1
+        1,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,1,1,1,1
       ],
       [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0,
-        1,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        1,
-        0,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1
+        1,1,1,1,1,1,1,1,0,1,0,0,0,0,0,0,0,1,0,1,1,1,1,1,1,1,1,1,1,1
       ],
       [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0,
-        1,
-        0,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0,
-        1,
-        0,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1
+        1,1,1,1,1,1,1,1,0,1,0,1,1,1,1,1,0,1,0,1,1,1,1,1,1,1,1,1,1,1
       ],
       [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0,
-        0,
-        0,
-        1,
-        0,
-        0,
-        0,
-        0,
-        0,
-        1,
-        0,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1
+        1,1,1,1,1,1,1,1,0,0,0,1,0,0,0,0,0,1,0,1,1,1,1,1,1,1,1,1,1,1
       ],
       [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0,
-        1,
-        0,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1
+        1,1,1,1,1,1,1,1,1,1,0,1,0,1,1,1,1,1,0,1,1,1,1,1,1,1,1,1,1,1
       ],
       [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0,
-        0,
-        0,
-        0,
-        1,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1
+        1,1,1,1,1,1,1,0,0,0,0,1,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1
       ],
       [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1
+        1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
       ],
       [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1
+        1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
       ],
       [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1
+        1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
       ]
     ],
     "start": [
@@ -2029,7 +1188,7 @@ function loadPredefinedMaze(mazeName){
   // Inga ytterligare modifieringar behövs eftersom grid redan innehåller start och mål
   clear_previous_search();
   draw_grid();
-  setFinalResultText(`Fördefinierad labyrint "${mazeName}" har laddats.`);
+  setFinalResultText(`Fördefinierad labyrint "${mazeName}" har laddats.`, currentAlgorithm === "A*");
 }
 
 /* Event Listener för fördefinierade labyrinter */
@@ -2045,6 +1204,7 @@ document.getElementById("predefinedSelect").addEventListener("change", (e) => {
 /* ================= SÖKNING ================== */
 document.getElementById("startSearchBtn").addEventListener("click", ()=>{
   let alg = document.getElementById("algorithmSelect").value;
+  currentAlgorithm = alg;
   if (alg==="A*") {
     start_a_star();
   } else if (alg==="BFS") {
@@ -2102,6 +1262,8 @@ function resetGrid() {
   }
   grid[start[0]][start[1]] = 0;
   draw_grid();
+  // Dölj kostnadsfunktion info vid återställning
+  costFunctionInfoDiv.style.display = "none";
 }
 
 /* ========================== INIT ========================== */
