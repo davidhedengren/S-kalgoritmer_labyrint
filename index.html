@@ -10,45 +10,91 @@
       /* Förhindra textmarkering i hela sidan */
       user-select: none;
     }
-    #controls {
-      margin-top: 10px;
+
+    /* Flexbox-container för labyrint och fördefinierade labyrinter */
+    #mainContainer {
+      display: flex;
+      flex-direction: row;
+      align-items: flex-start;
     }
+
+    /* Canvas och dess container */
     #canvasContainer {
       position: relative;
       border: 1px solid #ccc;
       display: inline-block;
       user-select: none; /* Förhindra textmarkering */
     }
+
     #mazeCanvas {
       border: 1px solid gray;
       user-select: none; /* Förhindra textmarkering */
     }
-    /* En enkel style för heuristik-texten (f(n)) */
-    .heuristic-label {
-      position: absolute;
-      color: black;
-      font-size: 12px;
-      pointer-events: none; /* så man kan klicka igenom texten */
-      user-select: none;    /* Förhindra textmarkering */
+
+    /* Fördefinierade Labyrinter Sektion till höger om labyrinten */
+    #predefinedMazes {
+      margin-left: 20px; /* Avstånd mellan labyrinten och fördefinierade labyrinter */
+      max-width: 250px; /* Maxbredd för fördefinierade labyrinter */
     }
-    /* Knappar och checkboxar mm */
-    button, select, label {
+
+    #predefinedMazes label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+
+    #predefinedMazes select {
+      width: 100%;
+      padding: 5px;
+      margin-bottom: 10px;
+    }
+
+    #predefinedMazes button {
+      display: block;
+      width: 100%;
+      margin-bottom: 5px;
+      padding: 5px;
+    }
+
+    /* Kontrollsektionen under labyrinten */
+    #controls {
+      margin-top: 20px;
+      max-width: 900px;
+    }
+
+    #controls label {
+      display: inline-block;
       margin-right: 8px;
       margin-bottom: 6px;
+      font-weight: bold;
     }
+
+    #controls select, 
+    #controls button, 
+    #controls label input {
+      margin-right: 8px;
+      margin-bottom: 6px;
+      padding: 5px;
+      box-sizing: border-box;
+    }
+
     /* Enkel styling för legend-listan */
     #legend {
       margin-top: 15px;
       line-height: 1.6em;
+      max-width: 900px;
     }
+
     #legend ul {
       list-style-type: none;
       padding: 0;
       margin: 0;
     }
+
     #legend li {
       margin-bottom: 4px;
     }
+
     /* Hjälp-fyrkanter i legend */
     .color-box {
       display: inline-block;
@@ -58,21 +104,75 @@
       vertical-align: middle;
       border: 1px solid #000;
     }
+
+    /* En enkel style för heuristik-texten (f(n)) */
+    .heuristic-label {
+      position: absolute;
+      color: black;
+      font-size: 12px;
+      pointer-events: none; /* så man kan klicka igenom texten */
+      user-select: none;    /* Förhindra textmarkering */
+    }
+
+    /* Informationsfält */
+    #info {
+      margin-top: 10px;
+      font-weight: bold;
+      color: #333;
+      background-color: #f0f0f0;
+      padding: 10px;
+      border-radius: 5px;
+      max-width: 900px;
+    }
+
+    #hoverInfo {
+      margin-top: 10px;
+      font-weight: bold;
+      color: #333;
+      background-color: #e0e0ff;
+      padding: 10px;
+      border-radius: 5px;
+      font-size: 14px; /* Mindre textstorlek */
+      max-width: 900px;
+    }
+
+    /* Differentiate the two info boxes */
+    #info, #hoverInfo {
+      display: inline-block;
+      width: 100%;
+    }
   </style>
 </head>
 <body>
 
-<h2>Sökalgoritmer i labyrint </h2>
+<h2>Sökalgoritmer i labyrint</h2>
 
-<div>
-  <div id="canvasContainer" style="position:relative;">
+<div id="mainContainer">
+  <!-- Labyrintens Canvas -->
+  <div id="canvasContainer">
     <canvas id="mazeCanvas"></canvas>
-    <!-- Här kommer text overlays för heuristik f(n) att dyka upp -->
+    <!-- Här kommer text overlays för heuristik-text f(n) att dyka upp -->
+  </div>
+
+  <!-- Fördefinierade Labyrinter till höger -->
+  <div id="predefinedMazes">
+    <label for="predefinedSelect">Exempel-labyrinter:</label>
+    <select id="predefinedSelect">
+      <option value="">-- Välj en labyrint --</option>
+      <option value="Exempel 1">Exempel 1</option>
+      <option value="Exempel 2">Exempel 2</option>
+      <!-- Du kan lägga till fler labyrinter här -->
+    </select>
+
+    <button id="saveBtn">Spara labyrint</button>
+    <input type="file" id="loadInput" style="display:none;" />
+    <button id="loadBtn">Ladda labyrint</button>
   </div>
 </div>
 
+<!-- Kontrollsektionen under labyrinten -->
 <div id="controls">
-  <label>Vald algoritm:</label>
+  <label for="algorithmSelect">Vald algoritm:</label>
   <select id="algorithmSelect">
     <option value="A*">A*</option>
     <option value="BFS">BFS</option>
@@ -87,18 +187,11 @@
   </label>
   <button id="nextStepBtn">Nästa steg</button>
   <button id="resetBtn">Återställ</button>
-  <button id="saveBtn">Spara labyrint</button>
-  <input type="file" id="loadInput" style="display:none;" />
-  <button id="loadBtn">Ladda labyrint</button>
 </div>
 
-<div id="info" style="
-  margin-top:10px;
-  font-weight:bold;
-  color:#333;
-  display:inline-block;
-  padding:5px;">
-</div>
+<!-- Informationsfält -->
+<div id="info"></div>
+<div id="hoverInfo"></div>
 
 <!-- Förklaringar av färger, kostnader och hur man skapar dem -->
 <div id="legend">
@@ -172,13 +265,17 @@ for (let r = 0; r < GRID_HEIGHT; r++) {
 }
 
 /* --- Start- och målpunkter --- */
-let start = [0, 0];
-let ends = [];
-grid[start[0]][start[1]] = 0; // start är fri (0)
+let start = [11, 7];
+let ends = [[5, 18]];
+// Sätt start och mål till vägar (0)
+grid[start[0]][start[1]] = 0;
+ends.forEach(e => {
+  grid[e[0]][e[1]] = 0;
+});
 
 /* --- Maps för heuristik-texter --- */
-let heuristicTexts = new Map(); // key: [r,c], value: DOM-element
-let f_values = new Map(); // key: [r,c], value: [f,h]
+let heuristicTexts = new Map(); // key: "r,c", value: DOM-element
+let f_values = new Map(); // key: "r,c", value: [f,h]
 
 /* --- Dra start-relaterade variabler --- */
 let is_dragging_start = false;
@@ -189,6 +286,7 @@ let drag_start_pos = null;
 
 /* --- Result-div --- */
 let resultDiv = document.getElementById("info");
+let hoverInfoDiv = document.getElementById("hoverInfo");
 
 /* --- Variabler för stegvis läge --- */
 let stepMode = false;
@@ -227,6 +325,8 @@ function cellCost(r, c) {
 function resetSearchCost() {
   search_cost = 0;
   resultDiv.style.backgroundColor = "";
+  hoverInfoDiv.textContent = "";
+  hoverInfoDiv.style.backgroundColor = "";
 }
 
 /* Sätt result-text + gör bakgrunden ljusgrön. */
@@ -312,11 +412,11 @@ function draw_grid() {
   } else {
     [sr, sc] = start;
   }
-  let x1 = sc * CELL_SIZE;
-  let y1 = sr * CELL_SIZE;
+  let x_start = sc * CELL_SIZE;
+  let y_start = sr * CELL_SIZE;
   ctx.fillStyle = "green";
-  ctx.fillRect(x1, y1, CELL_SIZE, CELL_SIZE);
-  ctx.strokeRect(x1, y1, CELL_SIZE, CELL_SIZE);
+  ctx.fillRect(x_start, y_start, CELL_SIZE, CELL_SIZE);
+  ctx.strokeRect(x_start, y_start, CELL_SIZE, CELL_SIZE);
 }
 
 function clear_heuristic_texts() {
@@ -334,6 +434,8 @@ function clear_previous_search() {
   clear_heuristic_texts();
   resultDiv.textContent = "";
   resultDiv.style.backgroundColor = "";
+  hoverInfoDiv.textContent = "";
+  hoverInfoDiv.style.backgroundColor = "";
 }
 
 function mark_explored(r, c) {
@@ -626,6 +728,7 @@ function start_bfs() {
   let queue = new SimpleQueue();
   queue.enqueue([[start[0],start[1]], []]);
   let explored = new Set();
+  explored.add(`${start[0]},${start[1]}`);
   BFS_STATE = {queue, explored, explored_cells:1};
   search_in_progress = true;
 
@@ -706,6 +809,7 @@ function start_dfs() {
   let start_direction = 2; // nedåt
   let stack = [[[start[0],start[1]], [], start_direction]];
   let explored = new Set();
+  explored.add(`${start[0]},${start[1]}`);
   DFS_STATE = {stack, explored, explored_cells:1};
   search_in_progress = true;
 
@@ -755,9 +859,9 @@ canvas.addEventListener("mousemove",(e)=>{
     let cell = getCellFromMouse(e);
     if (cell) {
       let [row, col] = cell;
-      if (grid[row][col] === 1) {
+      if (grid[row][col] === 1) { // Korrigerad variabel från 'c' till 'col'
         grid[row][col] = 0;
-      } else {
+      } else if (grid[row][col] === 0) {
         grid[row][col] = 1;
       }
       draw_grid();
@@ -824,22 +928,26 @@ canvas.addEventListener("mouseup",(e)=>{
   drag_start_pos = null;
 });
 
+/* Hover för att visa f(n) */
 canvas.addEventListener("mousemove",(e)=>{
   let cell = getCellFromMouse(e);
   if (!cell) {
-    resultDiv.textContent = "";
+    hoverInfoDiv.textContent = "";
     return;
   }
   let key = `${cell[0]},${cell[1]}`;
   if (f_values.has(key)) {
     let [fval, hval] = f_values.get(key);
     let gval = fval - hval;
-    resultDiv.textContent = `f(n) = g(n) + h(n) = ${gval} + ${hval} = ${fval}`;
+    hoverInfoDiv.textContent = `f(n) = g(n) + h(n) = ${gval} + ${hval} = ${fval}`;
+    hoverInfoDiv.style.backgroundColor = "#e0e0ff";
   } else {
-    resultDiv.textContent = "";
+    hoverInfoDiv.textContent = "";
+    hoverInfoDiv.style.backgroundColor = "";
   }
 });
 
+/* Skapa heuristik-labels */
 function createHeuristicLabel(r, c, txt) {
   let labelKey = `${r},${c}`;
   if (heuristicTexts.has(labelKey)) {
@@ -857,9 +965,1086 @@ function createHeuristicLabel(r, c, txt) {
   heuristicTexts.set(labelKey, label);
 }
 
-/* == Knappar == */
+/* ================== SPARA/LADDA ================== */
+/* Funktion för att spara labyrint */
+document.getElementById("saveBtn").addEventListener("click", ()=>{
+  let data = {
+    "grid": grid,
+    "start": start,
+    "ends": ends
+  };
+  let jsonStr = JSON.stringify(data, null, 2);
+  let blob = new Blob([jsonStr], {type:"application/json"});
+  let url = URL.createObjectURL(blob);
+
+  let a = document.createElement("a");
+  a.href = url;
+  a.download = "maze.json";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+});
+
+/* Funktion för att ladda labyrint */
+document.getElementById("loadBtn").addEventListener("click", ()=>{
+  document.getElementById("loadInput").click();
+});
+
+document.getElementById("loadInput").addEventListener("change",(e)=>{
+  let file = e.target.files[0];
+  if (!file) return;
+  let reader = new FileReader();
+  reader.onload = (ev)=>{
+    try {
+      let data = JSON.parse(ev.target.result);
+      if (!data.grid || !data.start || !data.ends) {
+        throw new Error("Ogiltigt format på JSON.");
+      }
+      if (data.grid.length !== GRID_HEIGHT || data.grid[0].length !== GRID_WIDTH) {
+        throw new Error(`Grid-storleken måste vara ${GRID_HEIGHT} rader x ${GRID_WIDTH} kolumner.`);
+      }
+      grid = data.grid;
+      start = data.start;
+      ends = data.ends.map(e => [...e]);
+      // Se till att start och mål är markerade i grid
+      grid[start[0]][start[1]] = 0;
+      ends.forEach(e => {
+        grid[e[0]][e[1]] = 0;
+      });
+      clear_previous_search();
+      draw_grid();
+      setFinalResultText("Labyrinten har laddats.");
+    } catch (error) {
+      alert("Fel vid inläsning av fil: " + error.message);
+    }
+  };
+  reader.readAsText(file);
+});
+
+/* ================== Fördefinierade Labyrinter ================== */
+const predefinedMazes = {
+  "Exempel 1": {
+    "grid": [
+      [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        1,
+        1,
+        0,
+        0,
+        1,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        1,
+        1,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        1,
+        0,
+        0,
+        0,
+        1,
+        1,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        1,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        1,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        1,
+        1,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ]
+    ],
+    "start": [
+      11,
+      7
+    ],
+    "ends": [
+      [
+        5,
+        18
+      ]
+    ]
+  },
+  "Exempel 2": {
+    "grid": [
+      [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        1,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        1,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        1,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ]
+    ],
+    "start": [
+      11,
+      7
+    ],
+    "ends": [
+      [
+        5,
+        18
+      ]
+    ]
+  }
+  // Du kan lägga till fler labyrinter här om du vill
+};
+
+/* Funktion för att ladda en fördefinierad labyrint */
+function loadPredefinedMaze(mazeName){
+  if(!predefinedMazes[mazeName]){
+    alert("Den fördefinierade labyrinten finns inte.");
+    return;
+  }
+  const maze = predefinedMazes[mazeName];
+  // Kopiera grid, start och ends exakt som de är
+  grid = maze.grid.map(row => row.slice());
+  start = [...maze.start];
+  ends = maze.ends.map(e => [...e]);
+  // Inga ytterligare modifieringar behövs eftersom grid redan innehåller start och mål
+  clear_previous_search();
+  draw_grid();
+  setFinalResultText(`Fördefinierad labyrint "${mazeName}" har laddats.`);
+}
+
+/* Event Listener för fördefinierade labyrinter */
+document.getElementById("predefinedSelect").addEventListener("change", (e) => {
+  const selectedMaze = e.target.value;
+  if(selectedMaze){
+    loadPredefinedMaze(selectedMaze);
+    // Återställ dropdown till default
+    e.target.value = "";
+  }
+});
+
+/* ================= SÖKNING ================== */
 document.getElementById("startSearchBtn").addEventListener("click", ()=>{
-  let alg = algorithmSelect.value;
+  let alg = document.getElementById("algorithmSelect").value;
   if (alg==="A*") {
     start_a_star();
   } else if (alg==="BFS") {
@@ -877,7 +2062,7 @@ document.getElementById("stepModeChk").addEventListener("change",(e)=>{
 
 document.getElementById("nextStepBtn").addEventListener("click", ()=>{
   if (!search_in_progress) return;
-  let alg = algorithmSelect.value;
+  let alg = document.getElementById("algorithmSelect").value;
   if (alg==="A*") {
     if (A_STAR_STATE) {
       let {open_set, came_from, g_score, explored_cells} = A_STAR_STATE;
@@ -905,6 +2090,7 @@ document.getElementById("nextStepBtn").addEventListener("click", ()=>{
   }
 });
 
+/* Funktion för att återställa labyrinten */
 document.getElementById("resetBtn").addEventListener("click", resetGrid);
 
 function resetGrid() {
@@ -918,46 +2104,10 @@ function resetGrid() {
   draw_grid();
 }
 
-document.getElementById("saveBtn").addEventListener("click", ()=>{
-  let data = {
-    "grid": grid,
-    "start": start,
-    "ends": ends
-  };
-  let jsonStr = JSON.stringify(data);
-  let blob = new Blob([jsonStr], {type:"application/json"});
-  let url = URL.createObjectURL(blob);
-
-  let a = document.createElement("a");
-  a.href = url;
-  a.download = "maze.json";
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-});
-
-document.getElementById("loadBtn").addEventListener("click", ()=>{
-  document.getElementById("loadInput").click();
-});
-
-document.getElementById("loadInput").addEventListener("change",(e)=>{
-  let file = e.target.files[0];
-  if (!file) return;
-  let reader = new FileReader();
-  reader.onload = (ev)=>{
-    let text = ev.target.result;
-    let data = JSON.parse(text);
-    grid = data.grid;
-    start = data.start;
-    ends = data.ends;
-    clear_previous_search();
-  };
-  reader.readAsText(file);
-});
-
-/* == Init == */
+/* ========================== INIT ========================== */
 draw_grid();
+// Optional: Ladda en labyrint direkt vid initiering, t.ex. Exempel 1
+// loadPredefinedMaze("Exempel 1");
 </script>
 
 </body>
