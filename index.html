@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>Sökalgoritmer i labyrint</title>
+  <title>Labyrint och Sökalgoritmer (JS-version)</title>
   <style>
     body {
       font-family: sans-serif;
@@ -441,6 +441,11 @@ function draw_grid() {
   ctx.fillStyle = "green";
   ctx.fillRect(x_start, y_start, CELL_SIZE, CELL_SIZE);
   ctx.strokeRect(x_start, y_start, CELL_SIZE, CELL_SIZE);
+
+  ctx.font = "14px Arial";
+  ctx.fillStyle = "rgba(255, 255, 255, 0.5)"; // Vit med 50% transparens
+  ctx.textAlign = "right";
+  ctx.fillText("Skapad av David Hedengren", canvas.width - 10, canvas.height - 10);
 }
 
 function clear_heuristic_texts() {
